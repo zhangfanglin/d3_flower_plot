@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<head>
+    <script src="https://d3js.org/d3.v3.min.js"></script>
+    <script src="https://lab.interactivethings.com/lib/d3-grid.js"></script>
+</head>
+
+<body>
+    <div id="flower_plot"></div>
+</body>
+<script>
+    let data_all ={
+        "share_data": [
+            {
+                "sample_info": {
+                    "SRR22281726": 63758,
+                    "SRR22281727": 14915,
+                    "SRR22281728": 135274,
+                    "SRR22281729": 72825,
+                    "SRR22281730": 33800,
+                    "SRR22281731": 35413,
+                    "SRR22281732": 8232,
+                    "SRR22281733": 91110,
+                    "SRR22281734": 880,
+                    "SRR22281735": 673
+                },
+                "tax_name": "Pristipomoides typus",
+                "total_num": 456880
+            }
+        ],
+        "uniq_list": [
+            {
+                "sample_name": "SRR22281726",
+                "uniq_tax": [
+                    {
+                        "reads_num": 585,
+                        "tax_name": "Dicentrarchus labrax"
+                    },
+                    {
+                        "reads_num": 1990,
+                        "tax_name": "Synodus foetens"
+                    }
+                ]
+            },
+            {
+                "sample_name": "SRR22281727",
+                "uniq_tax": []
+            },
+            {
+                "sample_name": "SRR22281728",
+                "uniq_tax": []
+            },
+            {
+                "sample_name": "SRR22281729",
+                "uniq_tax": [
+                    {
+                        "reads_num": 2463,
+                        "tax_name": "Fundulus heteroclitus"
+                    }
+                ]
+            },
+            {
+                "sample_name": "SRR22281730",
+                "uniq_tax": []
+            },
+            {
+                "sample_name": "SRR22281731",
+                "uniq_tax": []
+            },
+            {
+                "sample_name": "SRR22281732",
+                "uniq_tax": [
+                    {
+                        "reads_num": 2,
+                        "tax_name": "Gobiosoma ginsburgi"
+                    },
+                    {
+                        "reads_num": 1261,
+                        "tax_name": "Prionotus carolinus"
+                    }
+                ]
+            },
+            {
+                "sample_name": "SRR22281733",
+                "uniq_tax": []
+            },
+            {
+                "sample_name": "SRR22281734",
+                "uniq_tax": [
+                    {
+                        "reads_num": 9,
+                        "tax_name": "Sphoeroides parvus"
+                    }
+                ]
+            },
+            {
+                "sample_name": "SRR22281735",
+                "uniq_tax": []
+            }
+        ]
+    }
+    let table_data=data_all.share_data;
+    var width = 400,
+        height = 400,
+        petals = data_all.uniq_list.length,
+        halfRadius = width / 5;  // length of petal & therefore size of digram overall
+
+    var size = d3.scale.sqrt()
+        .domain([0, 1])
+        .range([0, halfRadius]);
+
+    var grid = d3.layout.grid()
+        .size([width - halfRadius * 6, height - halfRadius * 6]);
+
+    var pie = d3.layout.pie()
+        .sort(null)
+        .value(function (d) { return d.size; });
+    // 初始化 svg
+    var svg = d3.select("#flower_plot").append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .append("g")
+        .attr("transform", "translate(" + halfRadius * 3 + "," + halfRadius * 3 + ")");
+
+    // This creates 12 petals all of size 0.5.  Move to petal creation based on myPetalData
+    // 数据整理
+    var data = d3.range(1).map(function (d) {
+        return {
+            petals: d3.range(petals).map(function (d) {
+                data_all.uniq_list[d].size = 1;
+                data_all.uniq_list[d].num = data_all.uniq_list[d].uniq_tax.length;
+                return data_all.uniq_list[d];
+            }),
+        }
+    });
+    // 确定花瓣中心位置
+    var flower = svg.selectAll('.flower')
+        .data(grid(data))
+        .enter().append('g')
+        .attr("class", "flower")
+        .attr("transform", function (d, i) {
+            return "translate(" + d.x + "," + d.y + ")";
+        });
+    const tooltip = svg
+        .append('div')
+        .attr('class', 'tooltip');
+    // 画出每个花瓣
+    var petal = flower.selectAll(".petal")
+        .data(function (d) { return pie(d.petals); })
+        .enter().append("path")
+        .attr("class", "petal")
+        .attr("transform", function (d) { return r((d.startAngle + d.endAngle) / 2); })
+        .attr("d", petalPath)
+        .attr("id", function (d) { return d.data.sample_name })
+        .style("fill", petalFill)
+        .on('mousemove', (event) => {flower.select('#text'+event.data.sample_name).style('opacity', 1)})
+        .on('mouseleave', (d) => {flower.select('#text'+d.data.sample_name).style('opacity', 0)})
+        .on('click', function (d, i) { table_data =d.data.uniq_tax;console.log(table_data); }); // 回调方法 显示点击后的数据（也就是每个样本所拥有的物种信息）
+    // 每个花瓣上的样本编号
+    var petalText = flower.selectAll(".textPath")
+        .data(function (d) { return pie(d.petals); })
+        .enter().append("text")
+        .attr("id", function (d) { return 'text'+d.data.sample_name })
+        .attr("transform", function (d) { return r((d.startAngle + d.endAngle) / 2); })
+        .attr("x", halfRadius* 2-40 ) //Move the text down
+        .attr("y", 10) //Move the text down
+        .attr("font-size", '10px') //Move the text down
+        .style('opacity', 0)
+        .attr("dy", function (d, i) {
+            return (d.endAngle > 0 * Math.PI / 180 ? 18 : -11);
+        })
+        .text(function (d) { return d.data.sample_name });
+    // 每个花瓣上的物种数量
+    var petalNumText = flower.selectAll(".NumText")
+        .data(function (d) { return pie(d.petals); })
+        .enter().append("text")
+        .attr("transform", function (d) { return r((d.startAngle + d.endAngle) / 2); })
+        .attr("x", halfRadius * 2 - 30) //Move the text down
+        .attr("y", 2) //Move the text down
+        .attr("fill", '#FFF') //Move the text down
+        .attr("font-size", '8px') //Move the text down
+
+        .text(function (d) { return d.data.num });
+    // 中心圆 + 数据 share_data
+    var circle = flower.append("circle")
+        .attr("class", 'circles')
+        .attr("cx", "0")
+        .attr("cy", "0")
+        .attr("r", "45")
+        .style("fill", "white")
+        .on('click', function (d, i) { table_data =data_all.share_data ;console.log(table_data);}); // 回调方法 显示点击后的数据（也就是所有样本共有的数据）
+    flower.append("text")
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '12px')
+        .attr("y", 5)
+        .text(data_all.share_data.length)
+    // 计算花瓣计算
+    function petalPath(d) {
+        var angle = (d.endAngle - d.startAngle) / 2,
+            s = polarToCartesian(-angle, halfRadius),
+            e = polarToCartesian(angle, halfRadius),
+            r = size(d.data.size),
+            m = { x: halfRadius + r, y: 0 },
+            c1 = { x: halfRadius + r, y: s.y },
+            c2 = { x: halfRadius + r, y: e.y };
+        return "M0,0L" + s.x + "," + s.y + "Q" + c1.x + "," + c1.y + " " + m.x + "," + m.y + "L" + m.x + "," + m.y + "Q" + c2.x + "," + c2.y + " " + e.x + "," + e.y + "Z";
+    };
+    function polarToCartesian(angle, radius) {
+        return {
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius
+        };
+    };
+    //  每个花瓣颜色
+    function petalFill(d, i) {
+        return d3.hcl(i / petals * 360, 60, 70);
+    };
+
+    //function flowerSum(d) {
+    //    return d3.sum(d.petals, function (d) { return d.size; });
+    //}
+
+    function r(angle) {
+        return "rotate(" + (angle / Math.PI * 180) + ")";
+    }
+</script>
